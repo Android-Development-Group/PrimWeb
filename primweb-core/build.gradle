@@ -3,7 +3,6 @@ apply plugin: 'com.novoda.bintray-release'
 
 android {
     compileSdkVersion 27
-    buildToolsVersion '27.0.3'
     defaultConfig {
         minSdkVersion 17
         targetSdkVersion 26
@@ -15,6 +14,7 @@ android {
     }
 
     lintOptions {
+        checkReleaseBuilds false
         abortOnError false
     }
 
@@ -24,9 +24,16 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['libs']
+        }
+    }
 }
 
 dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation 'com.android.support:appcompat-v7:27.1.1'
     implementation 'com.android.support:recyclerview-v7:27.1.1'
     implementation 'com.zhy:mpermission-api:1.0.0'
@@ -50,11 +57,38 @@ publish {
     website = 'https://github.com/JakePrim/PrimWeb'
 }
 
-//tasks.withType(Javadoc) {
-//    options.encoding = "UTF-8"
-//}
-tasks.withType(Javadoc) {
-    options.addStringOption('Xdoclint:none', '-quiet')
-    options.addStringOption('encoding', 'UTF-8')
-    options.addStringOption('charSet', 'UTF-8')
+
+task javadoc(type: Javadoc) {
+    options.encoding = "utf-8"
+    source = android.sourceSets.main.java.srcDirs
+    classpath += files(android.bootClasspath)
+
+    options {
+        //links "http://docs.oracle.com/javase/7/docs/api/"
+        linksOffline "https://developer.android.com/reference","${android.sdkDirectory}/docs/reference"
+        encoding = "UTF-8"
+    }
+    exclude '**/BuildConfig.java'
+    exclude '**/R.java'
+
+    android.libraryVariants.all { variant ->
+        variant.javaCompileProvider.configure{
+            javadoc.classpath += files(it.classpath.files)
+        }
+    }
+}
+
+task sourcesJar(type: Jar) {
+    from android.sourceSets.main.java.srcDirs
+    classifier = 'sources'
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives javadocJar
+    archives sourcesJar
 }
